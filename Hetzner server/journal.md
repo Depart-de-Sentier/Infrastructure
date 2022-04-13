@@ -82,6 +82,10 @@ Check configuration
 
     nginx -c /etc/nginx/nginx.conf -t
 
+Add nginx unit to boot
+   
+   sudo systemctl enable nginx
+
 Restart command:
 
     sudo systemctl restart nginx
@@ -90,38 +94,68 @@ Restart command:
 
 `brightway.dev` is managed with the Vultr DNS. Currently I point only `hub.brightway.dev` at the Hetzner server.
 
-**Note: the following is from a previous install ~1.5 years ago. Maybe there are easier ways now**
 
 ## HTTPS with certbot
 
-Follow instructions from https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04
+### Add site to nginx config
 
-Wildcard instructions from https://medium.com/@saurabh6790/generate-wildcard-ssl-certificate-using-lets-encrypt-certbot-273e432794d7
+Following https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04#step-5-%E2%80%93-setting-up-server-blocks-(recommended) add a file to
+`/etc/nginx/sites-available/hub.brightway.dev` with basic http config. 
 
-    sudo add-apt-repository ppa:certbot/certbot
-    sudo apt install python-certbot-nginx
+The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure-private/blob/main/Hetzner%20server/sites-available/hub.brightway.dev . <-  this file does not contain _yet_ the actual ssl details it's a http onlyh configuration so that we can have a working nginx when using certbot to generate the certs.
 
-Test NGINX config with
 
-    sudo nginx -t
+and add a link to the sites-enabled:
 
-To get this to work, I had to delete all https from all initial site configs.
 
-Generate wildcard certificates:
+```
+sudo ln -s /etc/nginx/sites-available/hub.brightway.dev /etc/nginx/sites-enabled
+```
 
-    sudo certbot -d *.brightwaylca.org -d *.docs.brightwaylca.org -d brightwaylca.org --manual --agree-tos --preferred-challenges=dns --email cmutel@gmail.com certonly
-    sudo certbot -d *.dorfsteig.ch -d dorfsteig.ch --manual --agree-tos --preferred-challenges=dns --email cmutel@gmail.com certonly
-    sudo certbot -d *.mutel.org -d mutel.org --manual --agree-tos --preferred-challenges=dns --email cmutel@gmail.com certonly
-    sudo certbot -d *.brightcon.link -d brightcon.link --manual --agree-tos --preferred-challenges=dns --email cmutel@gmail.com certonly
+### Make sure jupyterhub, traefik and nginx systemd units start on boot
 
-In each case, one needs to add one or more TXT DNS records, but this is easy.
+```` 
+sudo systemctl enable jupyterhub
+sudo systemctl enable traefik
+sudo systemctl enable nginx
+sudo systemctl daemon-reload
+```
+
+
+### Add certs with certbot
+
+Follow instructions from https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-20-04
+
++ `sudo apt install certbot python3-certbot-nginx`
+
+**There is no firewall running for the moment in the server, so "step 3" of the guide is not implemented**
++ `sudo certbot --nginx -d hub.brightway.dev --agree-tos --email cmutel@gmail.com`
+Use opton _2_ to redirect all traffic to https.
+
+### Automatic cert renewal is now included in ubuntu 20 and certbot
+
++ Make sure the renewal is automatic thanks to the systemd unit installed with certbot at the first step:
+```
+sudo systemctl status certbot.timer
+```
+should yield something like:
+
+```
+● certbot.timer - Run certbot twice daily
+     Loaded: loaded (/lib/systemd/system/certbot.timer; enabled; vendor preset: enabled)
+     Active: active (waiting) since Wed 2022-04-13 05:59:59 CEST; 32min ago
+    Trigger: Wed 2022-04-13 13:03:42 CEST; 6h left
+   Triggers: ● certbot.service
+
+Apr 13 05:59:59 Ubuntu-2004-focal-64-minimal systemd[1]: Started Run certbot twice daily.
+
+```
+
+
+# Troubleshooting
 
 Can get info on current certificates with
 
-    sudo certbot certificates
-
-Certbot adds stuff to `/etc/nginx/sites-enabled/default`, clean this file and move useful stuff to the relevant site configs manually.
-
-Renew certificates:
-
-    sudo certbot renew
+```
+sudo certbot certificates
+```
