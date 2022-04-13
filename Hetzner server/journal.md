@@ -102,7 +102,7 @@ Restart command:
 Following https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04#step-5-%E2%80%93-setting-up-server-blocks-(recommended) add a file to
 `/etc/nginx/sites-available/hub.brightway.dev` with basic http config. 
 
-The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure-private/blob/main/Hetzner%20server/sites-available/hub.brightway.dev . <-  this file does not contain _yet_ the actual ssl details it's a http onlyh configuration so that we can have a working nginx when using certbot to generate the certs.
+The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure-private/blob/main/Hetzner%20server/sites-available/hub.brightway.dev . <-  this file does not contain _yet_ the actual ssl details it's a http onlyh configuration so that we can have a working nginx when using certbot to generate the certs. It's a template with the required configuration for the forwarding.
 
 
 and add a link to the sites-enabled:
@@ -159,3 +159,45 @@ Can get info on current certificates with
 ```
 sudo certbot certificates
 ```
+
+The nginx config file for the hub should look more or less like follows (after being modified by certbot):
+
+```
+server {
+    server_name hub.brightway.dev;
+    access_log  /var/log/nginx/hub.brightway.dev.access.log;
+
+
+    location / {
+        proxy_pass http://localhost:8100;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header Connection "upgrade";
+	proxy_set_header Upgrade $http_upgrade;
+
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/hub.brightway.dev/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/hub.brightway.dev/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = hub.brightway.dev) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name hub.brightway.dev;
+    return 404; # managed by Certbot
+
+
+}
+
+```
+
+The `upgrade` part seems to be important for the websocket.
