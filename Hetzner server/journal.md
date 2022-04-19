@@ -1,4 +1,4 @@
-Server is on hetzner.com. Static IP is:
+Server is on hetzner.com. Static IP is currently:
 
     176.9.61.115
 
@@ -65,14 +65,21 @@ Change `traefik` to only listen to localhost by editing `/opt/tljh/state/traefik
     [entryPoints.http]
     address = "127.0.0.1:8100"
 
+## Configuring TLJH
+
+```
+sudo tljh-config set limits.memory 16G
+sudo tljh-config set limits.cpu 4
+sudo tljh-config reload
+```
 
 # NGINX
 
-Follow instructions from https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-18-04#step-5-setting-up-server-blocks-(recommended)
-
+```
     sudo apt update
     sudo apt-get upgrade
     sudo apt install nginx
+```
 
 Check it is running:
 
@@ -90,10 +97,9 @@ Restart command:
 
     sudo systemctl restart nginx
 
-# DNS entries
+## DNS entries
 
 `brightway.dev` is managed with the Vultr DNS. Currently I point only `hub.brightway.dev` at the Hetzner server.
-
 
 ## HTTPS with certbot
 
@@ -102,11 +108,9 @@ Restart command:
 Following https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04#step-5-%E2%80%93-setting-up-server-blocks-(recommended) add a file to
 `/etc/nginx/sites-available/hub.brightway.dev` with basic http config. 
 
-The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure-private/blob/main/Hetzner%20server/sites-available/hub.brightway.dev . <-  this file does not contain _yet_ the actual ssl details it's a http onlyh configuration so that we can have a working nginx when using certbot to generate the certs. It's a template with the required configuration for the forwarding.
+The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure/blob/main/Hetzner%20server/sites-available/hub.brightway.dev. This file does not contain _yet_ the actual ssl details it's a http only configuration so that we can have a working nginx when using certbot to generate the certs. It's a template with the required configuration for the forwarding.
 
-
-and add a link to the sites-enabled:
-
+Add a link to the sites-enabled:
 
 ```
 sudo ln -s /etc/nginx/sites-available/hub.brightway.dev /etc/nginx/sites-enabled
@@ -114,31 +118,37 @@ sudo ln -s /etc/nginx/sites-available/hub.brightway.dev /etc/nginx/sites-enabled
 
 ### Make sure jupyterhub, traefik and nginx systemd units start on boot
 
-```` 
+```
 sudo systemctl enable jupyterhub
 sudo systemctl enable traefik
 sudo systemctl enable nginx
 sudo systemctl daemon-reload
 ```
 
-
 ### Add certs with certbot
 
 Follow instructions from https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-20-04
 
-+ `sudo apt install certbot python3-certbot-nginx`
+```
+sudo apt install certbot python3-certbot-nginx
+```
 
 **There is no firewall running for the moment in the server, so "step 3" of the guide is not implemented**
-+ `sudo certbot --nginx -d hub.brightway.dev --agree-tos --email cmutel@gmail.com`
+```
+sudo certbot --nginx -d hub.brightway.dev --agree-tos --email cmutel@gmail.com
+```
+
 Use opton _2_ to redirect all traffic to https.
 
-### Automatic cert renewal is now included in ubuntu 20 and certbot
+### Automatic cert renewal
 
-+ Make sure the renewal is automatic thanks to the systemd unit installed with certbot at the first step:
+Make sure the renewal is automatic thanks to the systemd unit installed with certbot at the first step:
+
 ```
 sudo systemctl status certbot.timer
 ```
-should yield something like:
+
+Should yield something like:
 
 ```
 ● certbot.timer - Run certbot twice daily
@@ -148,11 +158,9 @@ should yield something like:
    Triggers: ● certbot.service
 
 Apr 13 05:59:59 Ubuntu-2004-focal-64-minimal systemd[1]: Started Run certbot twice daily.
-
 ```
 
-
-# Troubleshooting
+### Troubleshooting
 
 Can get info on current certificates with
 
@@ -197,7 +205,6 @@ server {
 
 
 }
-
 ```
 
 The `upgrade` part seems to be important for the websocket.
