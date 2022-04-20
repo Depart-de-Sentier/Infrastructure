@@ -53,6 +53,12 @@ Install necessary packages:
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     bash Miniconda3-latest-Linux-x86_64.sh
 
+We will have multiple `conda` installs; to get this conda command working, you can source this script:
+
+```
+source miniconda3/etc/profile.d/conda.sh
+```
+
 # TLJH (https://tljh.jupyter.org/)
 
     sudo apt install python3 python3-dev git curl
