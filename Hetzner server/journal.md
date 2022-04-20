@@ -208,3 +208,57 @@ server {
 ```
 
 The `upgrade` part seems to be important for the websocket.
+
+# [pandarus_remote](https://github.com/cmutel/pandarus_remote)
+
+## Installation
+
+Install using the user `conda` (i.e. not the TLJH one):
+
+```
+miniconda3/bin/conda create -n pandarus_remote python=3.9 pandarus_remote
+```
+
+## Redis
+
+Following https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-redis-on-ubuntu-20-04.
+
+```
+sudo apt install redis-server
+```
+
+Edit the config file:
+
+```
+sudo nano /etc/redis/redis.conf
+```
+
+Change `supervised no` to `supervised systemd`.
+
+```
+sudo systemctl restart redis.service
+sudo systemctl status redis
+```
+
+## [RQ](https://python-rq.org/)
+
+Set up to run under systemd by creating `/etc/systemd/system/rq-worker.service`:
+
+```
+[Unit]
+Description=RQ worker
+
+[Service]
+ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/rq worker
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start:
+
+```
+systemctl daemon-reload
+systemctl enable rq-worker.service
+systemctl start rq-worker.service
+```
