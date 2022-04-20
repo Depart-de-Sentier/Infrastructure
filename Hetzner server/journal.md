@@ -262,3 +262,59 @@ systemctl daemon-reload
 systemctl enable rq-worker.service
 systemctl start rq-worker.service
 ```
+
+## Setting up `pandarus.brightway.dev`
+
+Site config in `sites-available`. DNS A name added pointing to Hetzner server.
+
+```
+sudo mv pandarus.brightway.dev /etc/nginx/sites-available/
+sudo chown root:root /etc/nginx/sites-available/pandarus.brightway.dev
+sudo ln -s /etc/nginx/sites-available/pandarus.brightway.dev /etc/nginx/sites-enabled/
+sudo certbot --nginx -d pandarus.brightway.dev --agree-tos --email cmutel@gmail.com
+```
+
+
+## [Waitress WSGI server](https://docs.pylonsproject.org/projects/waitress/en/latest/)
+
+```
+miniconda3/bin/conda create -n waitress waitress
+```
+
+Create a runner Python program:
+
+```
+import os
+os.environ['PANDARUS_CPUS'] = "4"
+
+from pandarus_remote import pr_app
+from waitress import serve
+serve(pr_app, host='127.0.0.1', port=8281)
+```
+
+Make sure it is executable.
+
+Set up to run under systemd by creating `/etc/systemd/system/pr-worker.service`:
+
+```
+[Unit]
+Description=Waitress running pandarus_remote
+After=network.target
+
+[Service]
+User=cmutel
+Group=www-data
+WorkingDirectory=/home/cmutel/pr
+ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/python /home/cmutel/pr/pr_runner.py
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start:
+
+```
+systemctl daemon-reload
+systemctl enable pr-worker.service
+systemctl start pr-worker.service
+```
