@@ -2,6 +2,8 @@ server {
     server_name pandarus.brightway.dev;
     access_log  /var/log/nginx/pandarus.brightway.dev.access.log;
 
+    client_max_body_size 300m;
+
     location / {
         proxy_pass http://localhost:8281;
         proxy_set_header X-Real-IP $remote_addr;
