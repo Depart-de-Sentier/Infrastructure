@@ -313,6 +313,13 @@ Group=www-data
 WorkingDirectory=/home/cmutel/pr
 ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/python /home/cmutel/pr/pr_runner.py
 
+# Set by conda activation scripts
+Environment=PROJ_NETWORK="OFF"
+Environment=PROJ_LIB=/home/cmutel/miniconda3/envs/pandarus_remote/share/proj
+Environment=GEOTIFF_CSV=/home/cmutel/miniconda3/envs/pandarus_remote/share/epsg_csv
+Environment=GDAL_DATA=/home/cmutel/miniconda3/envs/pandarus_remote/share/gdal
+Environment=GDAL_DRIVER_PATH=/home/cmutel/miniconda3/envs/pandarus_remote/lib/gdalplugins
+
 [Install]
 WantedBy=multi-user.target
 ```
