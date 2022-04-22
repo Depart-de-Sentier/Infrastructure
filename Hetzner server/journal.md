@@ -324,3 +324,28 @@ systemctl daemon-reload
 systemctl enable pr-worker.service
 systemctl start pr-worker.service
 ```
+
+### Debugging PR jobs
+
+Get into the conda environment, e.g.
+
+```
+source miniconda3/etc/profile.d/conda.sh
+conda activate pandarus_remote
+```
+
+Then get the exception information (in Python shell):
+
+```
+from redis import Redis
+from rq import Queue
+from rq.registry import FailedJobRegistry
+from rq.job import Job
+
+redis = Redis()
+queue = Queue(connection=redis)
+registry = FailedJobRegistry(queue=queue)
+for job_id in registry.get_job_ids():
+    job = Job.fetch(job_id, connection=redis)
+    print(job_id, job.exc_info)
+```
