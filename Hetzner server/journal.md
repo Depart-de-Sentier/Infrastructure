@@ -283,9 +283,11 @@ See https://python-rq.org/patterns/systemd/.
 Then enable and start:
 
 ```
-systemctl daemon-reload
-systemctl enable rq-worker.service
-systemctl start rq-worker.service
+sudo systemctl daemon-reload
+sudo systemctl start rq-worker@1.service
+sudo systemctl start rq-worker@2.service
+sudo systemctl start rq-worker@3.service
+sudo systemctl start rq-worker@4.service
 ```
 
 ## Setting up `pandarus.brightway.dev`
