@@ -248,17 +248,24 @@ sudo systemctl status redis
 
 ## [RQ](https://python-rq.org/)
 
-Set up to run under systemd by creating `/etc/systemd/system/rq-worker.service`:
+Set up to run under systemd by creating `/etc/systemd/system/rq-worker@.service`:
 
 ```
 [Unit]
-Description=RQ worker
+Description=RQ Worker Number %i
+After=network.target
 
 [Service]
+Type=simple
 User=cmutel
 Group=www-data
 WorkingDirectory=/home/cmutel/pr
 ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/rq worker
+
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+PrivateTmp=true
+Restart=always
 
 # Set by conda activation scripts
 Environment=PROJ_NETWORK="OFF"
@@ -270,6 +277,8 @@ Environment=GDAL_DRIVER_PATH=/home/cmutel/miniconda3/envs/pandarus_remote/lib/gd
 [Install]
 WantedBy=multi-user.target
 ```
+
+See https://python-rq.org/patterns/systemd/.
 
 Then enable and start:
 
