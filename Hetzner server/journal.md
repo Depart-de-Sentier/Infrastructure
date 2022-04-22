@@ -255,7 +255,17 @@ Set up to run under systemd by creating `/etc/systemd/system/rq-worker.service`:
 Description=RQ worker
 
 [Service]
+User=cmutel
+Group=www-data
+WorkingDirectory=/home/cmutel/pr
 ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/rq worker
+
+# Set by conda activation scripts
+Environment=PROJ_NETWORK="OFF"
+Environment=PROJ_LIB=/home/cmutel/miniconda3/envs/pandarus_remote/share/proj
+Environment=GEOTIFF_CSV=/home/cmutel/miniconda3/envs/pandarus_remote/share/epsg_csv
+Environment=GDAL_DATA=/home/cmutel/miniconda3/envs/pandarus_remote/share/gdal
+Environment=GDAL_DRIVER_PATH=/home/cmutel/miniconda3/envs/pandarus_remote/lib/gdalplugins
 
 [Install]
 WantedBy=multi-user.target
@@ -279,7 +289,6 @@ sudo chown root:root /etc/nginx/sites-available/pandarus.brightway.dev
 sudo ln -s /etc/nginx/sites-available/pandarus.brightway.dev /etc/nginx/sites-enabled/
 sudo certbot --nginx -d pandarus.brightway.dev --agree-tos --email cmutel@gmail.com
 ```
-
 
 ## [Waitress WSGI server](https://docs.pylonsproject.org/projects/waitress/en/latest/)
 
