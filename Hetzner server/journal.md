@@ -332,6 +332,7 @@ User=cmutel
 Group=www-data
 WorkingDirectory=/home/cmutel/pr
 ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/python /home/cmutel/pr/pr_runner.py
+Restart=always
 
 # Set by conda activation scripts
 Environment=PROJ_NETWORK="OFF"
