@@ -2,6 +2,7 @@ server {
     server_name hub.brightway.dev;
     access_log  /var/log/nginx/hub.brightway.dev.access.log;
 
+    client_max_body_size 100m;
 
     location / {
         proxy_pass http://localhost:8100;
