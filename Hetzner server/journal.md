@@ -377,3 +377,12 @@ for job_id in registry.get_job_ids():
     job = Job.fetch(job_id, connection=redis)
     print(job_id, job.exc_info)
 ```
+
+## files.brightway.dev
+
+Config file in sites-available, install as other sites above.
+
+```
+sudo ln -s /etc/nginx/sites-available/files.brightway.dev /etc/nginx/sites-enabled/
+sudo certbot --nginx -d files.brightway.dev --agree-tos --email cmutel@gmail.com
+```

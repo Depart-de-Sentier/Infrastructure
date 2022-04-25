@@ -1,0 +1,9 @@
+server {
+    server_name             files.brightway.dev;
+    access_log              /var/log/nginx/files.brightway.dev.access.log;
+
+    location / {
+        root /home/cmutel/files.brightway.dev/;
+        autoindex off;
+    }
+}
