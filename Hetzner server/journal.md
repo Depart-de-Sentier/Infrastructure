@@ -97,7 +97,7 @@ Check configuration
 
 Add nginx unit to boot
    
-   sudo systemctl enable nginx
+    sudo systemctl enable nginx
 
 Restart command:
 
