@@ -386,3 +386,42 @@ Config file in sites-available, install as other sites above.
 sudo ln -s /etc/nginx/sites-available/files.brightway.dev /etc/nginx/sites-enabled/
 sudo certbot --nginx -d files.brightway.dev --agree-tos --email cmutel@gmail.com
 ```
+
+## Automatic website deployment
+
+### On our server
+
+Create user `websites`. Cloned brightcon website to their home directory.
+
+Create SSH keypair for this user:
+
+```
+ssh-keygen -t ed25519
+```
+
+Add public key to authorized_keys by copying its contents.
+
+### On Github
+
+In the repository you want cloned, create the file `.github/workflows/<something>.yaml`. Example content using https://github.com/appleboy/ssh-action:
+
+```
+name: Sync latest website content
+on: [push]
+jobs:
+
+  synnc-website-content:
+    name: Sync website content SSH
+    runs-on: ubuntu-latest
+    steps:
+    - name: executing remote ssh command
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.KEY }}
+        port: ${{ secrets.PORT }}
+        script: cd brightcon && git pull https://github.com/Depart-de-Sentier/brightcon.git
+```
+
+In the Github web UI, add the `HOST` (176.9.61.115), `USERNAME` (`websites`), `PORT` (22), and `KEY` (private key) secrets.
