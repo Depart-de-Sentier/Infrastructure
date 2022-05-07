@@ -1,0 +1,5 @@
+server {
+    server_name             brightcon.link;
+    access_log              off;
+    return 302 https://2021.brightcon.link;
+}

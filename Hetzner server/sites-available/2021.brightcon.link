@@ -1,0 +1,9 @@
+server {
+    server_name 2021.brightcon.link;
+    access_log  /var/log/nginx/2021.brightcon.link.access.log;
+
+    location / {
+        root /home/websites/brightcon/2021;
+        index index.html;
+    }
+}
