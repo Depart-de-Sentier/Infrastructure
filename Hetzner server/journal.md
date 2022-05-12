@@ -284,7 +284,8 @@ Then enable and start:
 
 ```
 sudo systemctl daemon-reload
-sudo systemctl start rq-worker@1.service
+sudo systemctl enable rq-worker\@{1..8}.service
+sudo systemctl start rq-worker@{1..8}.service
 sudo systemctl start rq-worker@2.service
 sudo systemctl start rq-worker@3.service
 sudo systemctl start rq-worker@4.service
