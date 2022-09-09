@@ -105,16 +105,16 @@ Restart command:
 
 ## DNS entries
 
-`brightway.dev` is managed with the Vultr DNS. Currently I point only `hub.brightway.dev` at the Hetzner server.
+`brightcon.link` is managed with the Vultr DNS. Currently I point only `hub.brightcon.link` at the Hetzner server.
 
 ## HTTPS with certbot
 
 ### Add site to nginx config
 
 Following https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04#step-5-%E2%80%93-setting-up-server-blocks-(recommended) add a file to
-`/etc/nginx/sites-available/hub.brightway.dev` with basic http config. 
+`/etc/nginx/sites-available/hub.brightcon.link` with basic http config.
 
-The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure/blob/main/Hetzner%20server/sites-available/hub.brightway.dev. This file does not contain _yet_ the actual ssl details it's a http only configuration so that we can have a working nginx when using certbot to generate the certs. It's a template with the required configuration for the forwarding.
+The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure/. This file does not contain _yet_ the actual ssl details it's a http only configuration so that we can have a working nginx when using certbot to generate the certs. It's a template with the required configuration for the forwarding.
 
 Add a link to the sites-enabled:
 
