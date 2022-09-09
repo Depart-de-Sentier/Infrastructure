@@ -119,7 +119,7 @@ The file is at the repo https://github.com/Depart-de-Sentier/Infrastructure/. Th
 Add a link to the sites-enabled:
 
 ```
-sudo ln -s /etc/nginx/sites-available/hub.brightway.dev /etc/nginx/sites-enabled
+sudo ln -s /etc/nginx/sites-available/hub.brightcon.link /etc/nginx/sites-enabled
 ```
 
 ### Make sure jupyterhub, traefik and nginx systemd units start on boot
@@ -141,7 +141,7 @@ sudo apt install certbot python3-certbot-nginx
 
 **There is no firewall running for the moment in the server, so "step 3" of the guide is not implemented**
 ```
-sudo certbot --nginx -d hub.brightway.dev --agree-tos --email cmutel@gmail.com
+sudo certbot --nginx -d hub.brightcon.link --agree-tos --email cmutel@gmail.com
 ```
 
 Use opton _2_ to redirect all traffic to https.
