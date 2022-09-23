@@ -74,10 +74,13 @@ Change `traefik` to only listen to localhost by editing `/opt/tljh/state/traefik
 
 ## Configuring TLJH
 
+
 ```
 sudo tljh-config set limits.memory 16G
 sudo tljh-config set limits.cpu 4
-sudo tljh-config reload
+# make jupyterlab app default:
+sudo tljh-config set user_environment.default_app jupyterlab
+sudo tljh-config reload hub
 ```
 
 # NGINX
