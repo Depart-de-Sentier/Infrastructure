@@ -219,10 +219,10 @@ The `upgrade` part seems to be important for the websocket.
 
 ## Installation
 
-Install using the user `conda` (i.e. not the TLJH one):
+Download `micromamba` to a user environment. Create a suitable environment:
 
 ```
-miniconda3/bin/conda create -n pandarus_remote python=3.9 pandarus_remote
+micromamba create -n pandarus -c conda-forge -c cmutel -c defaults pandarus_remote rq redis
 ```
 
 ## Redis
@@ -260,19 +260,12 @@ Type=simple
 User=cmutel
 Group=www-data
 WorkingDirectory=/home/cmutel/pr
-ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/rq worker
+ExecStart=/home/cmutel/.local/bin/micromamba run -n pandarus rq worker
 
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s TERM $MAINPID
 PrivateTmp=true
 Restart=always
-
-# Set by conda activation scripts
-Environment=PROJ_NETWORK="OFF"
-Environment=PROJ_LIB=/home/cmutel/miniconda3/envs/pandarus_remote/share/proj
-Environment=GEOTIFF_CSV=/home/cmutel/miniconda3/envs/pandarus_remote/share/epsg_csv
-Environment=GDAL_DATA=/home/cmutel/miniconda3/envs/pandarus_remote/share/gdal
-Environment=GDAL_DRIVER_PATH=/home/cmutel/miniconda3/envs/pandarus_remote/lib/gdalplugins
 
 [Install]
 WantedBy=multi-user.target
@@ -284,11 +277,9 @@ Then enable and start:
 
 ```
 sudo systemctl daemon-reload
-sudo systemctl enable rq-worker\@{1..8}.service
 sudo systemctl start rq-worker@{1..8}.service
-sudo systemctl start rq-worker@2.service
-sudo systemctl start rq-worker@3.service
-sudo systemctl start rq-worker@4.service
+sudo systemctl start rq-worker@1.service
+systemctl status rq-worker@1
 ```
 
 ## Setting up `pandarus.brightway.dev`
@@ -296,19 +287,48 @@ sudo systemctl start rq-worker@4.service
 Site config in `sites-available`. DNS A name added pointing to Hetzner server.
 
 ```
-sudo mv pandarus.brightway.dev /etc/nginx/sites-available/
+server {
+    server_name pandarus.brightway.dev;
+    access_log  /var/log/nginx/pandarus.brightway.dev.access.log;
+    server_tokens        off;
+
+    client_max_body_size 300m;
+
+    location / {
+        proxy_pass http://localhost:8281;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Upgrade $http_upgrade;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/pandarus.brightway.dev/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/pandarus.brightway.dev/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+server {
+    if ($host = pandarus.brightway.dev) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+    server_tokens        off;
+
+    server_name pandarus.brightway.dev;
+    listen 80;
+    return 404; # managed by Certbot
+```
+
+Set up file and certificate:
+
+```
 sudo chown root:root /etc/nginx/sites-available/pandarus.brightway.dev
 sudo ln -s /etc/nginx/sites-available/pandarus.brightway.dev /etc/nginx/sites-enabled/
-sudo certbot --nginx -d pandarus.brightway.dev --agree-tos --email cmutel@gmail.com
+sudo certbot --nginx
 ```
 
 ## [Waitress WSGI server](https://docs.pylonsproject.org/projects/waitress/en/latest/)
 
-```
-miniconda3/bin/conda create -n waitress waitress
-```
-
-Create a runner Python program:
+Create a runner Python program: `run_pr.py`
 
 ```
 import os
@@ -332,15 +352,8 @@ After=network.target
 User=cmutel
 Group=www-data
 WorkingDirectory=/home/cmutel/pr
-ExecStart=/home/cmutel/miniconda3/envs/pandarus_remote/bin/python /home/cmutel/pr/pr_runner.py
+ExecStart=/home/cmutel/.local/bin/micromamba run -n pandarus python /home/cmutel/pr/pr_runner.py
 Restart=always
-
-# Set by conda activation scripts
-Environment=PROJ_NETWORK="OFF"
-Environment=PROJ_LIB=/home/cmutel/miniconda3/envs/pandarus_remote/share/proj
-Environment=GEOTIFF_CSV=/home/cmutel/miniconda3/envs/pandarus_remote/share/epsg_csv
-Environment=GDAL_DATA=/home/cmutel/miniconda3/envs/pandarus_remote/share/gdal
-Environment=GDAL_DRIVER_PATH=/home/cmutel/miniconda3/envs/pandarus_remote/lib/gdalplugins
 
 [Install]
 WantedBy=multi-user.target
@@ -349,9 +362,10 @@ WantedBy=multi-user.target
 Then enable and start:
 
 ```
-systemctl daemon-reload
-systemctl enable pr-worker.service
-systemctl start pr-worker.service
+sudo systemctl daemon-reload
+sudo systemctl enable pr-worker.service
+sudo systemctl start pr-worker.service
+systemctl status pr-worker
 ```
 
 ### Debugging PR jobs
