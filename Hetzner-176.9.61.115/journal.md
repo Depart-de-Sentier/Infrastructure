@@ -225,6 +225,29 @@ Download `micromamba` to a user environment. Create a suitable environment:
 micromamba create -n pandarus -c conda-forge -c cmutel -c defaults pandarus_remote rq redis
 ```
 
+Version 2.0 of `pandarus` requires `exactextract`, which is not making life simple (nothing is on pypi). One needs to do the following:
+
+```console
+micromamba activate pandarus
+micromamba install appdirs fiona gdal geopandas geos numpy pybind11 rasterio rasterstats Rtree shapely -c conda-forge
+git clone https://github.com/isciences/exactextract
+cd exactextract
+mkdir cmake-build-release
+cd cmake-build-release
+micromamba run -n pandarus cmake -DCMAKE_BUILD_TYPE=Release -DGDAL_INCLUDE_DIR=/home/cmutel/micromamba/envs/pandarus/include -DBUILD_CLI:=OFF -DBUILD_DOC:=OFF -DCMAKE_BUILD_TYPE=Release ..
+make
+cd ../python/
+pip install --no-deps .
+```
+
+And then:
+
+```console
+cd $HOME
+git clone https://github.com/cmutel/pandarus.git
+pip install --no-deps .
+```
+
 ## Redis
 
 Following https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-redis-on-ubuntu-20-04.
