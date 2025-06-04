@@ -463,3 +463,50 @@ jobs:
 ```
 
 In the Github web UI, add the `HOST` (176.9.61.115), `USERNAME` (`websites`), `PORT` (22), and `KEY` (private key) secrets.
+
+## Postgres 16
+
+Our server is running Ubuntu Jammy Jellyfish. To install Postgres 16, I did:
+
+- Create `/etc/apt/sources.list.d/pgdg.list` and add the line:
+
+```console
+deb http://apt.postgresql.org/pub/repos/apt jammy-pgdg main
+```
+
+- Add the signing key:
+
+```console
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+```
+
+- Install the software
+
+```console
+sudo apt update
+sudo apt install postgresql-16 postgresql-contrib-16
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+- Edit `/etc/postgresql/16/main/postgresql.conf` to allow for password logins on local socket connections:
+
+```console
+local   all             all                                     md5
+```
+
+(and restart the service)
+
+## Vocab.sentier.dev
+
+- Login to `psql` and create the user `pyst`:
+
+```console
+CREATE USER pyst WITH CREATEDB PASSWORD <secret>
+```
+
+- Create the units database:
+
+```console
+CREATE DATABASE units_vocab_sentier_dev OWNER pyst;
+```
