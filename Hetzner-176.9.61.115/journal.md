@@ -497,6 +497,17 @@ local   all             all                                     md5
 
 (and restart the service)
 
+## Typesense
+
+- Get the typesense package
+
+```console
+curl -O https://dl.typesense.org/releases/28.0/typesense-server-28.0-amd64.deb
+sudo dpkg -i typesense-server-28.0-amd64.deb
+```
+
+This creates a system service file at `/etc/systemd/system/typesense-server.service` and a typesense config file at `/etc/typesense/typesense-server.ini`. It also starts the server.
+
 ## Vocab.sentier.dev
 
 - Login to `psql` and create the user `pyst`:
