@@ -140,6 +140,7 @@ sudo apt install certbot python3-certbot-nginx
 ```
 
 **There is no firewall running for the moment in the server, so "step 3" of the guide is not implemented**
+
 ```
 sudo certbot --nginx -d hub.brightway.dev --agree-tos --email cmutel@gmail.com
 ```
@@ -520,4 +521,129 @@ CREATE USER pyst WITH CREATEDB PASSWORD <secret>
 
 ```console
 CREATE DATABASE units_vocab_sentier_dev OWNER pyst;
+```
+
+## Fuseki
+
+Installation of Fuseki from Java release
+
+Following instructions from https://github.com/NatLibFi/Skosmos/wiki/InstallTutorial.
+
+```console
+wget https://dlcdn.apache.org/jena/binaries/apache-jena-fuseki-5.4.0.tar.gz
+cd /opt
+sudo ln -s apache-jena-fuseki-5.4.0 fuseki
+./fuseki/fuseki-server --version
+```
+
+Run as `fuseki` user:
+
+```console
+sudo adduser --system --home /opt/fuseki --no-create-home fuseki
+```
+
+Fuskei layout:
+
+* Fuseki code (the server distribution) goes into /opt/fuseki (symlink)
+* databases go under /var/lib/fuseki
+* log files go under /var/log/fuseki
+* configuration files go under /etc/fuseki
+
+Get the necessary directories created with correct permissions:
+
+```console
+cd /var/lib
+sudo mkdir -p fuseki/{backups,databases,system,system_files}
+sudo chown -R fuseki fuseki
+
+cd /var/log
+sudo mkdir fuseki
+sudo chown fuseki fuseki
+
+cd /etc
+sudo mkdir fuseki
+sudo chown fuseki fuseki
+
+cd /etc/fuseki
+sudo ln -s /var/lib/fuseki/* .
+sudo ln -s /var/log/fuseki logs
+```
+
+Create systemd service script `/etc/systemd/system/fuseki.service`:
+
+```console
+[Unit]
+Description=Fuseki
+[Service]
+Environment=FUSEKI_HOME=/opt/fuseki
+Environment=FUSEKI_BASE=/etc/fuseki
+Environment=JVM_ARGS=-Xmx8G
+User=fuseki
+ExecStart=/opt/fuseki/fuseki-server
+Restart=on-failure
+RestartSec=15
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable the service:
+
+```console
+sudo systemctl enable fuseki
+```
+
+Add `fuseki.d-d-s.ch` DNS entry pointing to our server address in Hostpoint.
+
+Create Nginx site proxy `/etc/nginx/sites-available/fuseki.d-d-s.ch`:
+
+```console
+server {
+    server_name fuseki.d-d-s.ch;
+    access_log  /var/log/nginx/fuseki.d-d-s.ch.access.log;
+    server_tokens        off;
+
+    location / {
+        proxy_pass http://localhost:3030;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Upgrade $http_upgrade;
+    }
+}
+```
+
+Enable the site:
+
+```console
+sudo ln -s /etc/nginx/sites-available/fuseki.d-d-s.ch /etc/nginx/sites-enabled/
+sudo systemctl restart nginx
+```
+
+Get HTTPS certificates:
+
+```console
+sudo certbot --nginx -d fuseki.d-d-s.ch --agree-tos --email cmutel@gmail.com
+```
+
+### Load the data
+
+First, create the main database:
+
+```console
+curl --data "dbName=skosmos&dbType=tdb2" http://localhost:3030/$/datasets
+```
+
+Installing via the web interface is possible in theory, but difficult. Easier to [install via the command line](https://github.com/NatLibFi/Skosmos/wiki/InstallTutorial#b-loading-data-using-the-command-line):
+
+```console
+sudo apt install ruby
+```
+
+The ruby `s-put` script isn't bundled with the Fuseki release, so copy the contents of https://github.com/apache/jena/blob/main/jena-cmds/src/main/ruby/s-put into a file `s-put`, and make that executable.
+
+Then install the TTL input files into their correct graphs. For example for units:
+
+```console
+./s-put http://localhost:3030/skosmos/data https://vocab.sentier.dev/units/ qudt-sentier-dev.ttl
 ```
