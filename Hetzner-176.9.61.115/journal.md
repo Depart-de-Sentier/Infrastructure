@@ -507,7 +507,7 @@ curl -O https://dl.typesense.org/releases/28.0/typesense-server-28.0-amd64.deb
 sudo dpkg -i typesense-server-28.0-amd64.deb
 ```
 
-This creates a system service file at `/etc/systemd/system/typesense-server.service` and a typesense config file at `/etc/typesense/typesense-server.ini`. It also starts the server.
+This creates a system service file at `/etc/systemd/system/typesense-server.service` and a typesense config file at `/etc/typesense/typesense-server.ini` (with the API key needed for PyST configuration). It also starts the server.
 
 ## Vocab.sentier.dev
 
@@ -522,6 +522,70 @@ CREATE USER pyst WITH CREATEDB PASSWORD <secret>
 ```console
 CREATE DATABASE units_vocab_sentier_dev OWNER pyst;
 ```
+
+These needs to happen separately for each database. Usually there is a separate pyst deployment per database.
+
+### py-semantic-taxonomy
+
+We will have multiple PyST instances running; at least one each for process, product, and unit, with more to come.
+
+The server is running Jammy, which has Python 3.10 as default. To avoid potential conflicts we install `uv` to get a safe virtualenv.
+
+After creating and activating a virtualenv, install pyst:
+
+```console
+uv pip install py-semantic-taxonomy
+```
+
+We will use the following ports:
+
+* 8201: Units
+
+Python script (`/home/cmutel/pyst/pyst_units.py`):
+
+```python
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "py_semantic_taxonomy.app:create_app",
+        host="127.0.0.1",
+        port=8201,
+        log_level="info",
+        workers=8,
+    )
+```
+
+Service file (`/etc/systemd/system/pyst-units.service`)
+
+```console
+# /etc/systemd/system/pyst-units.service
+[Unit]
+Description=PyST Units
+After=network.target
+
+[Service]
+Type=simple
+User=cmutel
+WorkingDirectory=/home/cmutel
+ExecStart=/home/cmutel/venvs/pyst/bin/python /home/cmutel/pyst/pyst_units.py
+Restart=always
+Environment=PyST_db_user="pyst"
+Environment=PyST_db_pass="<secret>"
+Environment=PyST_db_host="localhost"
+Environment=PyST_db_port=5432
+Environment=PyST_db_name="units_vocab_sentier_dev"
+Environment=PyST_auth_token="<secret>"
+Environment=PyST_typesense_url="http://localhost:8108"
+Environment=PyST_typesense_api_key="<secret>"
+Environment=PyST_typesense_embedding_model="ts/multilingual-e5-large"
+Environment=PyST_typesense_prefix="units"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`PyST_typesense_api_key` comes from `/etc/typesense/typesense-server.ini`; the other secrets are in our secret store.
 
 ## Fuseki
 
@@ -647,3 +711,234 @@ Then install the TTL input files into their correct graphs. For example for unit
 ```console
 ./s-put http://localhost:3030/skosmos/data https://vocab.sentier.dev/units/ qudt-sentier-dev.ttl
 ```
+
+# Indico
+
+Following instructions from https://docs.getindico.io/en/stable/installation/production/deb/nginx/
+
+* Install some dependencies (Postgres already installed for PyST):
+
+```console
+sudo apt install -y --install-recommends postgresql-16 libpq-dev nginx libxslt1-dev libxml2-dev libffi-dev libpcre3-dev libyaml-dev libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev xz-utils liblzma-dev uuid-dev build-essential redis-server git libpango1.0-dev libjpeg-turbo8-dev
+systemctl start postgresql.service redis-server
+```
+
+* Create the Postgresql database:
+
+```sql
+CREATE USER indico WITH PASSWORD <secret>;
+CREATE DATABASE indico OWNER indico;
+CREATE EXTENSION unaccent; CREATE EXTENSION pg_trgm;
+```
+
+* Create indico user:
+
+```console
+sudo useradd -rm -g www-data -d /opt/indico -s /bin/bash indico
+```
+
+* Install indico
+
+While *running as the indico user*, install UV and create a virtual env at `virtualenvs/indico`. Then install the software:
+
+```console
+uv pip install uwsgi indico
+```
+
+Run the setup wizard:
+
+```console
+indico setup wizard
+```
+
+And create the database schema:
+
+```console
+indico db prepare
+```
+
+You can now *logout the indico user*.
+
+* Create services and config files
+
+Create `/etc/uwsgi-indico.ini`:
+
+```ini
+[uwsgi]
+uid = indico
+gid = www-data
+umask = 027
+
+processes = 4
+enable-threads = true
+chmod-socket = 770
+chown-socket = indico:www-data
+socket = /opt/indico/web/uwsgi.sock
+stats = /opt/indico/web/uwsgi-stats.sock
+protocol = uwsgi
+
+master = true
+auto-procname = true
+procname-prefix-spaced = indico
+disable-logging = true
+
+single-interpreter = true
+
+touch-reload = /opt/indico/web/indico.wsgi
+wsgi-file = /opt/indico/web/indico.wsgi
+virtualenv = /opt/indico/virtualenvs/indico
+
+vacuum = true
+buffer-size = 20480
+memory-report = true
+max-requests = 2500
+harakiri = 900
+harakiri-verbose = true
+reload-on-rss = 2048
+evil-reload-on-rss = 8192
+```
+
+Indico uwsgi service `/etc/systemd/system/indico-uwsgi.service`:
+
+```
+[Unit]
+Description=Indico uWSGI
+After=network.target
+
+[Service]
+ExecStart=/opt/indico/virtualenvs/indico/bin/uwsgi --ini /etc/uwsgi-indico.ini
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+SyslogIdentifier=indico-uwsgi
+User=indico
+Group=www-data
+UMask=0027
+Type=notify
+NotifyAccess=all
+KillMode=mixed
+KillSignal=SIGQUIT
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Celery task runner service ``:
+
+```
+[Unit]
+Description=Indico Celery
+After=network.target
+
+[Service]
+ExecStart=/opt/indico/virtualenvs/indico/bin/indico celery worker -B
+Restart=always
+SyslogIdentifier=indico-celery
+User=indico
+Group=www-data
+UMask=0027
+Type=simple
+KillMode=mixed
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
+```
+
+* Create the website configs
+
+Create the file `/etc/nginx/sites-available/indico.d-d-s.ch`:
+
+First, populate it with dummy data:
+
+```nginx
+server {
+  listen 80;
+  server_name indico.d-d-s.ch;
+}
+```
+
+And get the letsencrypt certificates:
+
+```console
+sudo systemctl restart nginx
+sudo certbot --nginx -d indico.d-d-s.ch --agree-tos --email cmutel@gmail.com
+```
+
+Then edit `/etc/nginx/sites-available/indico.d-d-s.ch` to include the following. You may need to adjust the SSL settings:
+
+```nginx
+server {
+  listen 80;
+  listen [::]:80;
+  server_name indico.d-d-s.ch;
+  return 301 https://$server_name$request_uri;
+}
+
+server {
+  listen       *:443 ssl http2;
+  listen       [::]:443 ssl http2 default ipv6only=on;
+  server_name  indico.d-d-s.ch;
+
+  ssl_certificate /etc/letsencrypt/live/indico.d-d-s.ch/fullchain.pem; # managed by Certbot
+  ssl_certificate_key /etc/letsencrypt/live/indico.d-d-s.ch/privkey.pem; # managed by Certbot
+  include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+  access_log            /opt/indico/log/nginx/access.log combined;
+  error_log             /opt/indico/log/nginx/error.log;
+
+  if ($host != $server_name) {
+    rewrite ^/(.*) https://$server_name/$1 permanent;
+  }
+
+  location /.xsf/indico/ {
+    internal;
+    alias /opt/indico/;
+  }
+
+  location ~ ^/(images|fonts)(.*)/(.+?)(__v[0-9a-f]+)?\.([^.]+)$ {
+    alias /opt/indico/web/static/$1$2/$3.$5;
+    access_log off;
+  }
+
+  location ~ ^/(css|dist|images|fonts)/(.*)$ {
+    alias /opt/indico/web/static/$1/$2;
+    access_log off;
+  }
+
+  location /robots.txt {
+    alias /opt/indico/web/static/robots.txt;
+    access_log off;
+  }
+
+  location / {
+    root /var/empty/nginx;
+    include /etc/nginx/uwsgi_params;
+    uwsgi_pass unix:/opt/indico/web/uwsgi.sock;
+    uwsgi_param UWSGI_SCHEME $scheme;
+    uwsgi_read_timeout 15m;
+    uwsgi_buffers 32 32k;
+    uwsgi_busy_buffers_size 128k;
+    uwsgi_hide_header X-Sendfile;
+    client_max_body_size 1G;
+  }
+}
+```
+
+* Start the services
+
+```
+sudo systemctl daemon-reload
+sudo systemctl start indico-celery
+sudo systemctl start indico-uwsgi
+systemctl start nginx indico-celery indico-uwsgi
+systemctl enable nginx postgresql redis-server indico-celery indico-uwsgi
+```
+
+Can check if services started with e.g. `systemctl status indico-celery`
+
+* Restart web server and get certificates
+
+```console
+sudo ln -s /etc/nginx/sites-available/indico.d-d-s.ch /etc/nginx/sites-enabled/
