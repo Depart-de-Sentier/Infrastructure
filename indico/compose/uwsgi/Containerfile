@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+ENTRYPOINT ["uwsgi", "--ini", "/etc/uwsgi/apps-enabled/indico.ini"]
+COPY indico.ini /etc/uwsgi/apps-available/
+COPY logging.yaml /opt/indico/etc/
+COPY indico.wsgi /opt/indico/web/
+RUN apt-get update \
+    && apt-get install -y --install-recommends \
+        postgresql-15 libpq-dev libxslt1-dev libxml2-dev libffi-dev \
+        libpcre3-dev libyaml-dev libssl-dev zlib1g-dev libbz2-dev \
+        libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev \
+        xz-utils liblzma-dev uuid-dev build-essential redis-server git \
+        libpango1.0-dev libjpeg62-turbo-dev uwsgi uwsgi-plugin-python3 \
+    && rm -rf /var/lib/apt/lists/*
+RUN python -m venv /opt/indico/.venv/ \
+    && /opt/indico/.venv/bin/pip install indico
+RUN ln -s /etc/uwsgi/apps-available/indico.ini /etc/uwsgi/apps-enabled/ \
+    && mkdir --parents \
+        /opt/indico/archive \
+        /opt/indico/cache \
+        /opt/indico/etc \
+        /opt/indico/log \
+        /opt/indico/tmp \
+        /opt/indico/web \
+    && ln --symbolic \
+        /opt/indico/.venv/lib/python3.11/site-packages/indico/web/static \
+        /opt/indico/web/
