@@ -942,3 +942,22 @@ Can check if services started with e.g. `systemctl status indico-celery`
 
 ```console
 sudo ln -s /etc/nginx/sites-available/indico.d-d-s.ch /etc/nginx/sites-enabled/
+```
+
+* Put the `favicon.ico` in the right place
+
+```console
+sudo cp /var/www/registration/static/favicon.ico /opt/indico/web/static/images/
+```
+
+Edit `/opt/indico/etc/indico.conf` and add `FAVICON_URL='https://indico.d-d-s.ch/images/favicon.ico'`
+
+* Add logos
+
+- Copy cropped logo from `https://github.com/Depart-de-Sentier/dds-logo/blob/main/PNG/White%20Logo%402x.png` to `/opt/indico/web/static/images/logo.png`.
+- Set permissions: `chown indico:www-data /opt/indico/web/static/images/logo.png`
+- Edit `/opt/indico/etc/indico.conf` and add `LOGO_URL='https://indico.d-d-s.ch/images/logo.png'.
+- Copy cropped logo from `https://github.com/Depart-de-Sentier/dds-logo/blob/main/PNG/Green%20Logo%402x.png` to `/opt/indico/web/static/images/login.png`.
+- Set permissions: `chown indico:www-data /opt/indico/web/static/images/login.png`
+- Edit `/opt/indico/etc/indico.conf` and add `LOGIN_LOGO_URL='https://indico.d-d-s.ch/images/login.png'.
+- Restart indico: `sudo systemctl restart indico-uwsgi`
