@@ -1,0 +1,10 @@
+{# https://github.com/indico/flask-multipass/blob/master/example/templates/index.html #}
+{% if g.user %}
+    Logged in as <strong>{{ g.user.username }}</strong>
+{% endif %}
+
+<ul>
+    <li>
+        <a href="{{ url_for('login') }}">login</a>
+    </li>
+</ul>
