@@ -969,3 +969,54 @@ Add the following to `/opt/indico/etc/indico.conf`
 `EMAIL_BACKEND='django_gsuite_token.GSuiteEmailBackend'`
 
 Install and configure https://github.com/Depart-de-Sentier/django-gsuite-token (i.e. need to provide `token.json`).
+
+## Django authentication
+
+Authentication using the Django user data base is done using the
+`flask_multipass_django` providers, currently at:
+
+https://github.com/bbguimaraes/dds-infrastructure/tree/indico/indico/flask_multipass_django
+
+* Build the plugin (can be done in another machine):
+
+    $ cd /path/to/flask_multipass_django/
+    $ python -m build
+
+* Install it.
+
+    $ su -l indico
+    $ export VIRTUAL_ENV=virtualenvs/indico
+    $ uv pip install /path/to/flask_multipass_django-0.0.0.tar.gz
+
+* Add authentication/identity provider configuration:
+
+    # /opt/indico/etc/indico.conf
+    LOCAL_REGISTRATION = False
+    LOCAL_IDENTITIES = False
+    EXTERNAL_REGISTRATION_URL = "events.d-d-s.ch"
+    AUTH_PROVIDERS = {
+        "events.d-d-s.ch": {
+            "type": "django",
+            "title": "your events.d-d-s.ch account",
+            "user_table": "dds_registration_user",
+            "sqlalchemy_url": "sqlite:////home/registration/registration/db.sqlite3",
+        },
+    }
+    IDENTITY_PROVIDERS = {
+        "events.d-d-s.ch": {
+            "type": "django",
+            "trusted_email": True,
+            "synced_fields": ["email", "first_name", "last_name"],
+        },
+    }
+    PROVIDER_MAP = {"events.d-d-s.ch": "events.d-d-s.ch"}
+
+* Add the `indico` user to the `registration` group so it can read the data base
+  file:
+
+  # /etc/group
+  registration:x:1266:indico
+
+* Signal `uwsgi` to reload its configuration:
+
+  $ systemctl reload indico-uwsgi.service
