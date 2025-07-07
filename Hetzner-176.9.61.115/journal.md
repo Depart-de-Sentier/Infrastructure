@@ -961,3 +961,11 @@ Edit `/opt/indico/etc/indico.conf` and add `FAVICON_URL='https://indico.d-d-s.ch
 - Set permissions: `chown indico:www-data /opt/indico/web/static/images/login.png`
 - Edit `/opt/indico/etc/indico.conf` and add `LOGIN_LOGO_URL='https://indico.d-d-s.ch/images/login.png'.
 - Restart indico: `sudo systemctl restart indico-uwsgi`
+
+* Configure the email backend:
+
+Add the following to `/opt/indico/etc/indico.conf`
+
+`EMAIL_BACKEND='django_gsuite_token.GSuiteEmailBackend'`
+
+Install and configure https://github.com/Depart-de-Sentier/django-gsuite-token (i.e. need to provide `token.json`).
