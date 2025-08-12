@@ -1,0 +1,7 @@
+{# https://github.com/indico/flask-multipass/blob/master/example/templates/login_selector.html #}
+Available login providers:
+<ul>
+    {% for provider in providers|sort(attribute='title') %}
+        <li><a href="{{ url_for(login_endpoint, provider=provider.name, next=next) }}">{{ provider.title }}</a></li>
+    {% endfor %}
+</ul>

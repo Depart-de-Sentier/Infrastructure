@@ -1,0 +1,16 @@
+[project]
+name = "flask_multipass_django"
+dynamic = ["version"]
+
+dependencies = [
+    "django",
+    "flask",
+    "flask-multipass",
+    "flask-sqlalchemy",
+    "flask-wtf",
+]
+
+[project.entry-points."flask_multipass.auth_providers"]
+django = "flask_multipass_django:AuthProvider"
+[project.entry-points."flask_multipass.identity_providers"]
+django = "flask_multipass_django:IdentityProvider"

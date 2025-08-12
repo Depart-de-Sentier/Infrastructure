@@ -969,3 +969,182 @@ Add the following to `/opt/indico/etc/indico.conf`
 `EMAIL_BACKEND='django_gsuite_token.GSuiteEmailBackend'`
 
 Install and configure https://github.com/Depart-de-Sentier/django-gsuite-token (i.e. need to provide `token.json`).
+
+## Django authentication
+
+Authentication using the Django user data base is done using the
+`flask_multipass_django` providers, currently at:
+
+https://github.com/bbguimaraes/dds-infrastructure/tree/indico/indico/flask_multipass_django
+
+* Build the plugin (can be done in another machine):
+
+    $ cd /path/to/flask_multipass_django/
+    $ python -m build
+
+* Install it.
+
+    $ su -l indico
+    $ export VIRTUAL_ENV=virtualenvs/indico
+    $ uv pip install /path/to/flask_multipass_django-0.0.0.tar.gz
+
+* Add authentication/identity provider configuration:
+
+    # /opt/indico/etc/indico.conf
+    LOCAL_REGISTRATION = False
+    LOCAL_IDENTITIES = False
+    EXTERNAL_REGISTRATION_URL = "events.d-d-s.ch"
+    AUTH_PROVIDERS = {
+        "events.d-d-s.ch": {
+            "type": "django",
+            "title": "your events.d-d-s.ch account",
+            "user_table": "dds_registration_user",
+            "sqlalchemy_url": "sqlite:////home/registration/registration/db.sqlite3",
+        },
+    }
+    IDENTITY_PROVIDERS = {
+        "events.d-d-s.ch": {
+            "type": "django",
+            "trusted_email": True,
+            "synced_fields": ["email", "first_name", "last_name"],
+        },
+    }
+    PROVIDER_MAP = {"events.d-d-s.ch": "events.d-d-s.ch"}
+
+* Add the `indico` user to the `registration` group so it can read the data base
+  file:
+
+  # /etc/group
+  registration:x:1266:indico
+
+* Signal `uwsgi` to reload its configuration:
+
+  $ systemctl reload indico-uwsgi.service
+
+# OpenMetadata
+
+Installation using `docker-compose`:
+
+https://docs.open-metadata.org/latest/quick-start/local-docker-deployment
+
+## Deployment
+
+    # mkdir ~/openmetadata/
+    # cd ~/openmetadata/
+
+Download the deployment file from the desired release in GitHub:
+
+https://github.com/open-metadata/OpenMetadata/releases/
+
+    # curl --location \
+        --output docker-compose.yml \
+        https://github.com/open-metadata/OpenMetadata/releases/download/1.8.6-release/docker-compose-postgres.yml
+
+Fix database user configuration:
+
+```diff
+--- podman-compose.yml
++++ podman-compose.yml
+@@ -22,8 +22,8 @@
+     restart: always
+     command: "--work_mem=10MB"
+     environment:
+-      POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: password
++      POSTGRES_USER: ${DB_USER:-openmetadata_user}
++      POSTGRES_PASSWORD: ${DB_USER_PASSWORD:-openmetadata_password}
+     expose:
+       - 5432
+     ports:
+@@ -34,7 +34,7 @@
+     networks:
+       - app_net
+     healthcheck:
+-      test: psql -U postgres -tAc 'select 1' -d openmetadata_db
++      test: psql -U $DB_USER -tAc 'select 1' -d $OM_DATABASE
+       interval: 15s
+       timeout: 10s
+       retries: 10
+```
+
+Remove public ports from the deployment:
+
+```diff
+--- podman-compose.yml
++++ podman-compose.yml
+@@ -26,8 +26,6 @@
+       POSTGRES_PASSWORD: ${DB_USER_PASSWORD:-openmetadata_password}
+     expose:
+       - 5432
+-    ports:
+-      - "5432:5432"
+     volumes:
+      - ./docker-volume/db-data-postgres:/var/lib/postgresql/data
+     
+@@ -48,9 +46,6 @@
+       - xpack.security.enabled=false
+     networks:
+       - app_net
+-    ports:
+-      - "9200:9200"
+-      - "9300:9300"
+     healthcheck:
+       test: "curl -s http://localhost:9200/_cluster/health?pretty | grep status | grep -qE 'green|yellow' || exit 1"
+       interval: 15s
+@@ -475,8 +470,8 @@
+       - 8585
+       - 8586
+     ports:
+-      - "8585:8585"
+-      - "8586:8586"
++      - "127.0.0.1:8585:8585"
++      - "127.0.0.1:8586:8586"
+     depends_on:
+       elasticsearch:
+         condition: service_healthy
+@@ -524,8 +519,6 @@
+       - "/opt/airflow/ingestion_dependency.sh"
+     expose:
+       - 8080
+-    ports:
+-      - "8080:8080"
+     networks:
+       - app_net
+     volumes:
+```
+
+Add a configuration file (the empty `OIDC_CUSTOM_PARAMS` entry is required
+because the parser cannot handle the default value in the official `compose`
+file):
+
+    # cat > env <<'EOF'
+    AUTHORIZER_ADMIN_PRINCIPALS=[admin,bruno,cmutel]
+    AUTHORIZER_PRINCIPAL_DOMAIN=d-d-s.ch
+    DB_USER=openmetadata
+    DB_USER_PASSWORD=…
+    OM_DATABASE=openmetadata
+    OIDC_CUSTOM_PARAMS=
+    EOF
+
+Start services:
+
+    # docker compose --env-file env up --detach
+
+**Note** : if using `podman` before 5.6.0 to test locally, a bug in transitive
+dependency handling prevents the server from starting (see
+https://github.com/containers/podman-compose/issues/921).  The services can be
+started manually:
+
+```
+[openmetadata-server] | Error: unable to start container 99f10d87f9676a18491beffb90912cde164bfe16e5bb50de8c49892c04f78d0f: generating dependency graph for container 99f10d87f9676a18491beffb90912cde164bfe16e5bb50de8c49892c04f78d0f: container 017d3c34f92aa376f74fe99ec6b80fe3eaa9162cb3cfcd7df33c9eb37fea9e56 depends on container 2194e5ce1d59d0701f86ef3cbdf2fe1289beb295f4a4092dc18700fdb94fa9d2 not found in input list: no such container
+```
+
+```console
+# podman compose \
+    --env-file env \
+    up --detach --no-deps ingestion openmetadata-server
+```
+
+Test that services are working correctly using an SSH tunnel:
+
+    $ ssh -NL 8000:localhost:8585 176.9.61.115

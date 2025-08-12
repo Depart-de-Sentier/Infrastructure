@@ -1,0 +1,80 @@
+version: 1.4.1
+services:
+  db:
+    build:
+      context: postgresql
+    user: ${POSTGRES_UID}
+    env_file: .env
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: docker.io/redis
+    user: ${REDIS_UID}
+    entrypoint:
+    - redis-server
+    - --save
+    - ""
+  uwsgi:
+    build:
+      context: uwsgi
+    depends_on:
+      db:
+        condition: service_healthy
+      redis: {}
+    user: ${UWSGI_UID}:${NGINX_GID}
+    env_file: .env
+    entrypoint:
+    - uwsgi
+    - --plugin
+    - python3
+    - --ini
+    - /etc/uwsgi/apps-enabled/indico.ini
+    stop_signal: SIGQUIT
+    stop_grace_period: 5m
+    volumes:
+    - type: tmpfs
+      target: /tmp/indico/tmp
+      driver_opts:
+        o: uid=${UWSGI_UID}
+    - type: tmpfs
+      target: /tmp/indico/log
+      driver_opts:
+        o: uid=${UWSGI_UID}
+    - type: bind
+      source: uwsgi/indico.conf
+      target: /opt/indico/etc/indico.conf
+    - type: bind
+      source: ../events.sqlite3
+      target: /opt/indico/events.sqlite3
+    - indico_cache:/tmp/indico/cache
+  nginx:
+    build:
+      context: nginx
+      additional_contexts:
+        # https://docs.docker.com/compose/how-tos/dependent-images/#use-another-services-image-as-the-base-image
+        uwsgi: container-image://compose_uwsgi
+    depends_on:
+    - uwsgi
+    user: ${NGINX_UID}:${NGINX_GID}
+    ports:
+    - "8000:8000"
+    volumes:
+    - type: tmpfs
+      target: /run/nginx:mode=0777
+    - type: tmpfs
+      target: /var/cache/nginx:mode=0777
+    - indico_cache:/opt/indico/cache
+volumes:
+  postgres_data:
+    driver_opts:
+      o: "uid=${POSTGRES_UID}"
+  indico_cache:
+    driver_opts:
+      o: "uid=${UWSGI_UID}"
