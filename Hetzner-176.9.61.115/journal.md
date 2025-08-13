@@ -823,7 +823,7 @@ TimeoutStopSec=300
 WantedBy=multi-user.target
 ```
 
-Celery task runner service ``:
+Celery task runner service `/etc/systemd/system/indico-celery.service`:
 
 ```
 [Unit]
