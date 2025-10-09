@@ -51,3 +51,90 @@ sudo chown tomas:tomas /home/tomas/.ssh
 sudo chown tomas:tomas /home/tomas/.ssh/authorized_keys
 sudo chmod 0700 /home/tomas/.ssh
 sudo chmod 0600 /home/tomas/.ssh/authorized_keys
+
+# TLJH
+
+Follow:
+https://tljh.jupyter.org/en/latest/install/custom-server.html 
+
+```bash
+# apt install python3 python3-dev git curl
+# cd /opt
+# curl -L https://tljh.jupyter.org/bootstrap.py | sudo -E python3 - --admin tomas
+```
+## config nginx
++ add site-available for purple
++ configure the site to forward to localhost:
+
+```
+map $http_upgrade $connection_upgrade { 
+    default upgrade;
+    ''      close;                  
+}
+server {
+    server_name purple.brightway.dev;
+    access_log  /var/log/nginx/purple.brightway.dev.access.log;                                                                                             
+    server_tokens        off;
+
+    client_max_body_size 100m;
+
+    location / {
+        proxy_pass http://localhost:8100;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # websocket headers
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Scheme $scheme;
+        proxy_buffering off;
+        # For the SameSite error
+        #add_header 'Set-Cookie' 'SameSite=None; Secure';
+        #proxy_cookie_path ~^/(.+)$ "/$1; SameSite=none";
+
+    }
+```
+
+
+## config traefik (from tljh)
+make the `/opt/tljh/state/traefik.toml` file look as follows:
+(change the entrypoints to another port, because we manage SSL with nginx and certbot
+
+```
+[api]
+
+[log]
+level = "INFO"
+
+[accessLog]
+format = "json"
+
+[providers]
+providersThrottleDuration = "0s"
+
+[accessLog.filters]
+statusCodes = [ "500-999",]
+
+[entryPoints.http]
+address = "localhost:8100"
+
+[entryPoints.auth_api]
+address = "localhost:8099"
+
+[providers.file]
+directory = "/opt/tljh/state/rules"
+watch = true
+
+[accessLog.fields.headers.names]
+Authorization = "redact"
+Cookie = "redact"
+Set-Cookie = "redact"
+X-Xsrftoken = "redact"
+
+[entryPoints.http.transport.respondingTimeouts]
+idleTimeout = "10m"
+
+```
+
