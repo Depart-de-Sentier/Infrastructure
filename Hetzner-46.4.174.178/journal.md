@@ -137,4 +137,10 @@ X-Xsrftoken = "redact"
 idleTimeout = "10m"
 
 ```
+## install oauthauthenticator
 
+in the environment of tljh, do:
+
+```
+conda install -c conda-forge oauthenticator
+```
