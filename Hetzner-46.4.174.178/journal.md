@@ -63,7 +63,7 @@ https://tljh.jupyter.org/en/latest/install/custom-server.html
 # curl -L https://tljh.jupyter.org/bootstrap.py | sudo -E python3 - --admin tomas
 ```
 ## config nginx
-+ add site-available for purple
++ add site-available for fall.brightcon.link
 + configure the site to forward to localhost:
 
 ```
@@ -72,8 +72,8 @@ map $http_upgrade $connection_upgrade {
     ''      close;                  
 }
 server {
-    server_name purple.brightway.dev;
-    access_log  /var/log/nginx/purple.brightway.dev.access.log;                                                                                             
+    server_name fall.brightcon.link;
+    access_log  /var/log/nginx/fall.brightcon.link.access.log;                                                                                             
     server_tokens        off;
 
     client_max_body_size 100m;
