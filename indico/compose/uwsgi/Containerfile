@@ -5,14 +5,14 @@ COPY logging.yaml /opt/indico/etc/
 COPY indico.wsgi /opt/indico/web/
 RUN apt-get update \
     && apt-get install -y --install-recommends \
-        postgresql-15 libpq-dev libxslt1-dev libxml2-dev libffi-dev \
-        libpcre3-dev libyaml-dev libssl-dev zlib1g-dev libbz2-dev \
+        libpq-dev libxslt1-dev libxml2-dev libffi-dev \
+        libpcre2-dev libyaml-dev libssl-dev zlib1g-dev libbz2-dev \
         libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev \
         xz-utils liblzma-dev uuid-dev build-essential redis-server git \
         libpango1.0-dev libjpeg62-turbo-dev uwsgi uwsgi-plugin-python3 \
     && rm -rf /var/lib/apt/lists/*
 RUN python -m venv /opt/indico/.venv/ \
-    && /opt/indico/.venv/bin/pip install indico
+    && /opt/indico/.venv/bin/pip install indico uwsgi
 RUN ln -s /etc/uwsgi/apps-available/indico.ini /etc/uwsgi/apps-enabled/ \
     && mkdir --parents \
         /opt/indico/archive \
