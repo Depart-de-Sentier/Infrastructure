@@ -988,12 +988,12 @@ https://github.com/bbguimaraes/dds-infrastructure/tree/indico/indico/flask_multi
     $ export VIRTUAL_ENV=virtualenvs/indico
     $ uv pip install /path/to/flask_multipass_django-0.0.0.tar.gz
 
-* Add authentication/identity provider configuration:
+* Add authentication/identity provider configuration. This is the file to modify to change the registration URL.:
 
     # /opt/indico/etc/indico.conf
     LOCAL_REGISTRATION = False
     LOCAL_IDENTITIES = False
-    EXTERNAL_REGISTRATION_URL = "events.d-d-s.ch"
+    EXTERNAL_REGISTRATION_URL = "https://events.d-d-s.ch/accounts/register"
     AUTH_PROVIDERS = {
         "events.d-d-s.ch": {
             "type": "django",
