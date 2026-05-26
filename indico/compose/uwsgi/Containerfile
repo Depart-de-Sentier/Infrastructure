@@ -12,7 +12,7 @@ RUN apt-get update \
         libpango1.0-dev libjpeg62-turbo-dev uwsgi uwsgi-plugin-python3 \
     && rm -rf /var/lib/apt/lists/*
 RUN python -m venv /opt/indico/.venv/ \
-    && /opt/indico/.venv/bin/pip install indico
+    && /opt/indico/.venv/bin/pip install indico indico-plugin-payment-manual
 RUN ln -s /etc/uwsgi/apps-available/indico.ini /etc/uwsgi/apps-enabled/ \
     && mkdir --parents \
         /opt/indico/archive \
