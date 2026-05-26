@@ -1021,6 +1021,76 @@ https://github.com/bbguimaraes/dds-infrastructure/tree/indico/indico/flask_multi
 
   $ systemctl reload indico-uwsgi.service
 
+## Payment plugin (bank transfer)
+
+Adds the `indico-plugin-payment-manual` plugin so event managers can run paid
+registrations with per-event bank-transfer instructions. This section is the production
+runbook — execute on the box, then commit a follow-up note recording the date
+the deploy actually ran.
+
+* Pre-flight checks (do NOT skip):
+
+  - Snapshot the Postgres `indico` database before running `db upgrade-plugins`.
+    `db upgrade-plugins` may create plugin-owned tables, and the snapshot is
+    the rollback path:
+
+        # sudo -u postgres pg_dump -Fc indico > /root/indico-pre-payment-manual.dump
+
+  - Inspect `/opt/indico/etc/indico.conf` for an existing `PLUGINS` set. If one
+    exists, MERGE — do not overwrite. If absent, add the new line shown below.
+
+* Install the plugin into the existing venv (as the indico user):
+
+    $ su -l indico
+    $ export VIRTUAL_ENV=virtualenvs/indico
+    $ uv pip install indico-plugin-payment-manual
+
+  (Verified on PyPI: `indico-plugin-payment-manual==3.2.1` registers entry
+  point `payment_manual -> indico_payment_manual.plugin:ManualPaymentPlugin`.)
+
+* Enable the plugin in `/opt/indico/etc/indico.conf`. Add (or merge into) the
+  `PLUGINS` set:
+
+    PLUGINS = {'payment_manual'}
+
+* Apply migrations (still as the indico user). Note: Indico 3.x has no
+  `db upgrade-plugins` subcommand — use `db --all-plugins upgrade` instead.
+  `payment_manual` itself has no migrations folder, so the second command
+  will report "skipping plugin 'payment_manual' (no migrations folder)" —
+  that is the success message, not a problem:
+
+    $ /opt/indico/virtualenvs/indico/bin/indico db upgrade
+    $ /opt/indico/virtualenvs/indico/bin/indico db --all-plugins upgrade
+
+* Restart the app services (both uwsgi and celery — celery unit is the one
+  defined earlier in this journal as `indico-celery.service`):
+
+    # systemctl restart indico-uwsgi indico-celery
+
+* Verify the plugin loaded. Indico 3.x has no `indico plugin list` command;
+  pipe the lookup into the app shell instead:
+
+    $ echo 'from indico.core.plugins import plugin_engine; print({n: p.title for n, p in plugin_engine.get_active_plugins().items()})' \
+        | /opt/indico/virtualenvs/indico/bin/indico shell
+
+  Output must contain `'payment_manual': 'Bank Transfer'`.
+
+* Behavioural smoke test against a hidden test event (not on the public event
+  listing): create a paid registration form, enable Bank Transfer as a method,
+  fill in dummy IBAN/BIC/beneficiary/reference, register a test attendee,
+  confirm the bank-transfer message renders on the post-registration page and
+  state is **Awaiting payment**, then **Mark as paid** in the management UI
+  and confirm state flips to **Complete**.
+
+* Rollback (data preserved): remove `payment_manual` from `PLUGINS`, restart
+  `indico-uwsgi`. The plugin stops being offered on new registrations but
+  existing rows keep their payment state.
+
+* Full uninstall: disable as above, then
+  `uv pip uninstall indico-plugin-payment-manual` (as the indico user). If
+  plugin-owned tables were created and need to go, restore the pre-deploy
+  Postgres snapshot.
+
 # OpenMetadata
 
 Installation using `docker-compose`:
