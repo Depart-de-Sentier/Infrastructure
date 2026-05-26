@@ -1053,21 +1053,27 @@ the deploy actually ran.
 
     PLUGINS = {'payment_manual'}
 
-* Apply migrations (still as the indico user):
+* Apply migrations (still as the indico user). Note: Indico 3.x has no
+  `db upgrade-plugins` subcommand — use `db --all-plugins upgrade` instead.
+  `payment_manual` itself has no migrations folder, so the second command
+  will report "skipping plugin 'payment_manual' (no migrations folder)" —
+  that is the success message, not a problem:
 
     $ /opt/indico/virtualenvs/indico/bin/indico db upgrade
-    $ /opt/indico/virtualenvs/indico/bin/indico db upgrade-plugins
+    $ /opt/indico/virtualenvs/indico/bin/indico db --all-plugins upgrade
 
 * Restart the app services (both uwsgi and celery — celery unit is the one
   defined earlier in this journal as `indico-celery.service`):
 
     # systemctl restart indico-uwsgi indico-celery
 
-* Verify the plugin loaded:
+* Verify the plugin loaded. Indico 3.x has no `indico plugin list` command;
+  pipe the lookup into the app shell instead:
 
-    $ /opt/indico/virtualenvs/indico/bin/indico plugin list
+    $ echo 'from indico.core.plugins import plugin_engine; print({n: p.title for n, p in plugin_engine.get_active_plugins().items()})' \
+        | /opt/indico/virtualenvs/indico/bin/indico shell
 
-  Output must include `payment_manual` and show it as enabled.
+  Output must contain `'payment_manual': 'Bank Transfer'`.
 
 * Behavioural smoke test against a hidden test event (not on the public event
   listing): create a paid registration form, enable Bank Transfer as a method,

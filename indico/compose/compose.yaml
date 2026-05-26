@@ -50,9 +50,6 @@ services:
     - type: bind
       source: uwsgi/indico.conf
       target: /opt/indico/etc/indico.conf
-    - type: bind
-      source: ../events.sqlite3
-      target: /opt/indico/events.sqlite3
     - indico_cache:/tmp/indico/cache
   nginx:
     build:

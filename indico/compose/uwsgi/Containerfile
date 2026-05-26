@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 ENTRYPOINT ["uwsgi", "--ini", "/etc/uwsgi/apps-enabled/indico.ini"]
 COPY indico.ini /etc/uwsgi/apps-available/
 COPY logging.yaml /opt/indico/etc/
