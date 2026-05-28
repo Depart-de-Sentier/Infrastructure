@@ -1218,3 +1218,92 @@ started manually:
 Test that services are working correctly using an SSH tunnel:
 
     $ ssh -NL 8000:localhost:8585 176.9.61.115
+
+# Indico — 2026-05-28 upgrade for LaTeX RCE advisory
+
+Indico shipped a security advisory for a LaTeX integration vulnerability
+(local file disclosure → RCE), fixed in v3.3.12. Upgraded the in-place
+install at `/opt/indico/virtualenvs/indico` to the latest 3.3.x.
+
+## Procedure (corrected — see gotchas below)
+
+1. Pre-upgrade backups:
+
+```console
+# sudo -u postgres pg_dump -Fc indico > /root/indico-pre-upgrade-2026-05-28.dump
+# tar czf /root/indico-archive-2026-05-28.tgz -C /opt/indico archive
+```
+
+2. Stop services:
+
+```console
+# systemctl stop indico-uwsgi indico-celery
+```
+
+3. Reclaim ownership of the venv (see gotcha #1):
+
+```console
+# chown -R indico:www-data /opt/indico/virtualenvs/indico
+```
+
+4. Upgrade as the `indico` user:
+
+```console
+# sudo -iu indico
+$ source /opt/indico/virtualenvs/indico/bin/activate
+$ uv pip install -U 'indico>=3.3.12' indico-plugin-payment-manual
+$ indico db upgrade                  # core FIRST — see gotcha #2
+$ indico db --all-plugins upgrade    # then plugins
+```
+
+5. Restart and verify:
+
+```console
+# systemctl restart indico-uwsgi indico-celery
+# journalctl -u indico-uwsgi -n 30 --no-pager
+```
+
+## Gotchas
+
+**1. Root-owned `__pycache__` blocks `uv pip install -U`.**
+The initial install in this journal used `sudo pip install` at some point,
+which left `__pycache__/` directories under the venv owned by root. uv's
+"remove old version" step then fails with `Permission denied (os error 13)`
+when run as the `indico` user. The chown in step 3 fixes it.
+
+To detect the same situation in the future:
+
+```console
+# find /opt/indico/virtualenvs/indico -name __pycache__ -not -user indico -printf '%u %p\n' | head
+```
+
+**2. `indico db --all-plugins upgrade` silently skipped the core schema
+upgrade.**
+When a plugin is enabled but has no `migrations/` folder (e.g.
+`payment_manual`), the `--all-plugins` form printed `skipping plugin
+'payment_manual' (no migrations folder)` and exited without running any
+core migrations — leaving the schema at the previous revision while the
+Indico package code had moved forward. Every event view that touched
+`attachments.attachments` then 500'd with:
+
+    psycopg2.errors.UndefinedColumn: column attachments_1.converted_from_id does not exist
+
+Fix was to run plain `indico db upgrade` (no `--all-plugins`) which applied
+the 9 pending core migrations up to head `af9d03d7073c`, including
+`932389d22b1f Add attachment annotations + converted_from` which adds the
+missing column.
+
+Lesson: always run `indico db upgrade` first, **then** `indico db
+--all-plugins upgrade`. Even if you don't think anything is pending, the
+two-step form costs nothing and avoids this trap.
+
+## Rollback (not used; kept for reference)
+
+```console
+# systemctl stop indico-uwsgi indico-celery
+# sudo -u postgres dropdb indico && sudo -u postgres createdb -O indico indico
+# sudo -u postgres pg_restore -d indico /root/indico-pre-upgrade-2026-05-28.dump
+# sudo -iu indico -- bash -lc 'source /opt/indico/virtualenvs/indico/bin/activate \
+    && uv pip install "indico==<previous-version>"'
+# systemctl start indico-uwsgi indico-celery
+```
